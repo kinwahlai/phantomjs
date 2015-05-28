@@ -339,11 +339,18 @@ WebPage::WebPage(QObject *parent, const QUrl &baseUrl)
     setObjectName("WebPage");
     m_callbacks = new WebpageCallbacks(this);
     m_customWebPage = new CustomPage(this);
+    Config *phantomCfg = Phantom::instance()->config();
+
+    // To grant universal access to a web page
+    // attribute "WebSecurityEnabled" must be applied during the initializing
+    // security context for Document instance. Setting up it later will not cause any effect
+    // see <qt\src\3rdparty\webkit\Source\WebCore\dom\Document.cpp:4468>
+    QWebSettings* settings = m_customWebPage->settings();
+    settings->setAttribute(QWebSettings::WebSecurityEnabled, phantomCfg->webSecurityEnabled());
+
     m_mainFrame = m_customWebPage->mainFrame();
     m_currentFrame = m_mainFrame;
     m_mainFrame->setHtml(BLANK_HTML, baseUrl);
-
-    Config *phantomCfg = Phantom::instance()->config();
 
     // NOTE: below you can see that between all the event handlers
     // we listen for, "SLOT(setupFrame())" is connected to 2 signals:
@@ -381,7 +388,7 @@ WebPage::WebPage(QObject *parent, const QUrl &baseUrl)
     // Page size does not need to take scrollbars into account.
     m_mainFrame->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAlwaysOff);
     m_mainFrame->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAlwaysOff);
-
+    
     m_customWebPage->settings()->setAttribute(QWebSettings::OfflineStorageDatabaseEnabled, true);
     m_customWebPage->settings()->setAttribute(QWebSettings::OfflineWebApplicationCacheEnabled, true);
     m_customWebPage->settings()->setAttribute(QWebSettings::FrameFlatteningEnabled, true);
@@ -899,8 +906,8 @@ bool WebPage::render(const QString &fileName, const QVariantMap &option)
     QString format = "";
     int quality = -1; // QImage#save default
 
-    if( fileName == STDOUT_FILENAME || fileName == STDERR_FILENAME ){
-        if( !QFile::exists(fileName) ){
+    if (fileName == STDOUT_FILENAME || fileName == STDERR_FILENAME) {
+        if (!QFile::exists(fileName)) {
             // create temporary file for OS that have no /dev/stdout or /dev/stderr. (ex. windows)
             tempFileName = QDir::tempPath() + "/phantomjstemp" + QUuid::createUuid().toString();
             outFileName = tempFileName;
@@ -908,39 +915,39 @@ bool WebPage::render(const QString &fileName, const QVariantMap &option)
 
         format = "png"; // default format for stdout and stderr
     }
-    else{
+    else {
         QFileInfo fileInfo(outFileName);
         QDir dir;
         dir.mkpath(fileInfo.absolutePath());
     }
 
-    if( option.contains("format") ){
+    if (option.contains("format")) {
         format = option.value("format").toString();
     }
-    else if (fileName.endsWith(".pdf", Qt::CaseInsensitive) ){
+    else if (fileName.endsWith(".pdf", Qt::CaseInsensitive)) {
         format = "pdf";
     }
 
-    if( option.contains("quality") ){
+    if (option.contains("quality")) {
         quality = option.value("quality").toInt();
     }
 
     bool retval = true;
-    if ( format == "pdf" ){
+    if (format == "pdf") {
         retval = renderPdf(outFileName);
     }
     else{
         QImage rawPageRendering = renderImage();
 
         const char *f = 0; // 0 is QImage#save default
-        if( format != "" ){
-            f = format.toUtf8().constData();
+        if (format != "") {
+            f = format.toLocal8Bit().constData();
         }
 
         retval = rawPageRendering.save(outFileName, f, quality);
     }
 
-    if( tempFileName != "" ){
+    if (tempFileName != "") {
         // cleanup temporary file and render to stdout or stderr
         QFile i(tempFileName);
         i.open(QIODevice::ReadOnly);
@@ -948,7 +955,7 @@ bool WebPage::render(const QString &fileName, const QVariantMap &option)
         QByteArray ba = i.readAll();
 
         System *system = (System*)Phantom::instance()->createSystem();
-        if( fileName == STDOUT_FILENAME ){
+        if (fileName == STDOUT_FILENAME) {
 #ifdef Q_OS_WIN32
             _setmode(_fileno(stdout), O_BINARY);
 #endif
@@ -959,7 +966,7 @@ bool WebPage::render(const QString &fileName, const QVariantMap &option)
             _setmode(_fileno(stdout), O_TEXT);
 #endif
         }
-        else if( fileName == STDERR_FILENAME ){
+        else if (fileName == STDERR_FILENAME) {
 #ifdef Q_OS_WIN32
             _setmode(_fileno(stderr), O_BINARY);
 #endif

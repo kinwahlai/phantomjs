@@ -96,7 +96,6 @@ RUN cd icu/source && ./configure --prefix=/usr --enable-static --disable-shared 
 ENV PHANTOMJS_TAG=master
 RUN apt-get install -y git
 #RUN git clone https://github.com/ariya/phantomjs.git
-RUN git clone https://github.com/bprodoehl/phantomjs.git
+RUN git clone https://github.com/kinwahlai/phantomjs.git
 
-CMD cd phantomjs && git checkout ${PHANTOMJS_TAG} && ./build.sh --confirm && cp bin/phantomjs /output/.
-
+CMD cd phantomjs && git checkout ${PHANTOMJS_TAG} && ./build.sh --confirm --jobs 2
